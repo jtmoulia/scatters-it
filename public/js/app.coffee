@@ -48,6 +48,7 @@ class window.DataModel extends Backbone.Model
     _.map(@get('rows'), (row) -> row[index])
 
 
+
 class window.PlotDimensionModel extends Backbone.Model
   initialize: () ->
     @get('data').bind('change:columns', () =>
@@ -57,7 +58,6 @@ class window.PlotDimensionModel extends Backbone.Model
 
 class window.PlotDimensions extends Backbone.Collection
   model: PlotDimensionModel
-
 
 margins = [60, 60, 20, 20]
 width   = 460 - margins[1] - margins[3]
