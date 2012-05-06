@@ -58,7 +58,7 @@
     }
 
     DataModel.prototype.replaceWithCSV = function(csv) {
-      var columns, d, row, splitData, trows;
+      var columns, d, parseDat, row, splitData, trows;
       splitData = (function() {
         var _i, _len, _ref, _results;
         _ref = csv.split("\n");
@@ -70,6 +70,13 @@
         return _results;
       })();
       columns = splitData[0];
+      parseDat = function(d) {
+        if (isNaN(d)) {
+          return d;
+        } else {
+          return parseFloat(d);
+        }
+      };
       trows = (function() {
         var _i, _len, _ref, _results;
         _ref = splitData.slice(1);
@@ -81,7 +88,7 @@
             _results2 = [];
             for (_j = 0, _len2 = row.length; _j < _len2; _j++) {
               d = row[_j];
-              _results2.push(parseFloat(d));
+              _results2.push(parseDat(d));
             }
             return _results2;
           })());
@@ -135,6 +142,18 @@
       });
     };
 
+    DataModel.prototype.isColForcedCategory = function(col) {
+      var filteredCol;
+      filteredCol = _.filter(this.selectCol(col), function(d) {
+        return typeof d !== 'number';
+      });
+      if (filteredCol.length > 0) {
+        return true;
+      } else {
+        return false;
+      }
+    };
+
     return DataModel;
 
   })(Backbone.Model);
@@ -144,17 +163,30 @@
     __extends(PlotDimensionModel, _super);
 
     function PlotDimensionModel() {
+      this.updateCol = __bind(this.updateCol, this);
       PlotDimensionModel.__super__.constructor.apply(this, arguments);
     }
 
     PlotDimensionModel.prototype.initialize = function() {
-      var _this = this;
-      return this.get('data').bind('change:columns', function() {
+      this.set('showData', true);
+      this.updateCol();
+      this.on('change:col', this.updateCol);
+      this.get('data').on('change:rows', this.updateCol);
+      return this.get('data').on('change:columns', function() {
         var cols;
-        cols = _this.get('data').get('columns');
-        if (_.indexOf(cols, _this.get('col')) === -1) {
-          return _this.set('col', cols[0]);
+        cols = this.get('data').get('columns');
+        if (_.indexOf(cols, this.get('col')) === -1) {
+          return this.set('col', cols[0]);
         }
+      });
+    };
+
+    PlotDimensionModel.prototype.updateCol = function() {
+      var isForcedCategory;
+      isForcedCategory = this.get('data').isColForcedCategory(this.get('col'));
+      return this.set({
+        isCategory: isForcedCategory,
+        isForcedCategory: isForcedCategory
       });
     };
 
@@ -355,6 +387,9 @@
       $(this.el).html(this.template({
         dimName: this.model.get('name'),
         colName: this.model.get('col'),
+        showData: this.model.get('showData'),
+        isCategory: this.model.get('isCategory'),
+        isForcedCategory: this.model.get('isForcedCategory'),
         columns: this.options.dataModel.get('columns')
       }));
       return this;

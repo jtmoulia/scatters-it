@@ -18,10 +18,14 @@ leastSquares = (x_vals, y_vals) ->
 
 
 class window.DataModel extends Backbone.Model
+
   replaceWithCSV: (csv) ->
     splitData = (row.split "," for row in csv.split "\n")
     columns = splitData[0]
-    trows = ((parseFloat(d) for d in row) for row in splitData[1..])
+    parseDat = (d) ->
+      if isNaN(d) then d else parseFloat(d)
+
+    trows = ((parseDat(d) for d in row) for row in splitData[1..])
     @set {columns: columns, rows: trows}
 
   toCSV: () ->
@@ -47,13 +51,32 @@ class window.DataModel extends Backbone.Model
     return [] if index == -1
     _.map(@get('rows'), (row) -> row[index])
 
-
+  isColForcedCategory: (col) ->
+    # update whether each column contains categories, checking by
+    # whether all of the data is a number
+    filteredCol = _.filter(@selectCol(col), (d) -> typeof(d) != 'number')
+    if filteredCol.length > 0 then true else false
 
 class window.PlotDimensionModel extends Backbone.Model
   initialize: () ->
-    @get('data').bind('change:columns', () =>
+    @set('showData', true)
+    @updateCol()
+
+    # Category checks when a new column is selected
+    @on('change:col', @updateCol)
+    @get('data').on('change:rows', @updateCol)
+
+    # Update for any changes in the data columns
+    @get('data').on('change:columns', () ->
       cols = @get('data').get('columns')
       @set('col', cols[0]) if _.indexOf(cols, @get('col')) == -1)
+
+  updateCol: () =>
+    isForcedCategory = @get('data').isColForcedCategory(@get('col'))
+    @set
+      isCategory: isForcedCategory
+      isForcedCategory: isForcedCategory
+
 
 
 class window.PlotDimensions extends Backbone.Collection
@@ -208,6 +231,9 @@ class window.PlotControlView extends Backbone.View
     $(@el).html @template
       dimName: @model.get('name')
       colName: @model.get('col')
+      showData: @model.get('showData')
+      isCategory: @model.get('isCategory')
+      isForcedCategory: @model.get('isForcedCategory')
       columns: @options.dataModel.get('columns')
 
     @

@@ -20,10 +20,19 @@
 
   <script type="text/template" id="plot-control-template">
     <label><%= dimName %></label>
+    <input class="show-checkbox" type="checkbox"
+      <% if (showData) print('checked="checked"') %> >
+      Show Data
+    </input>
+    <input class="category-checkbox" type="checkbox"
+      <% if (isCategory || isForcedCategory) print('checked="checked"') %>
+      <% if (isForcedCategory) print ('disabled="disabled"') %> >
+      Use as Category
+    </input>
     <select>
       <% _.each(columns, function(col) { %>
          <option
-            <% if (colName === col) print('selected="selected"'); %>  >
+            <% if (colName === col) print('selected="selected"'); %> >
             <%= col %>
          </option>
       <% }); %>
