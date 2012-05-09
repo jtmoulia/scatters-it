@@ -57,6 +57,11 @@ class window.DataModel extends Backbone.Model
     filteredCol = _.filter(@selectCol(col), (d) -> typeof(d) != 'number')
     if filteredCol.length > 0 then true else false
 
+  colCategories: (col) =>
+    # Return the unique, sorted column as the categories
+    _.uniq(@selectCol(col)).sort()
+
+
 class window.PlotDimensionModel extends Backbone.Model
   initialize: () ->
     @set('showData', true)
@@ -77,6 +82,27 @@ class window.PlotDimensionModel extends Backbone.Model
       isCategory: isForcedCategory
       isForcedCategory: isForcedCategory
 
+  toValue: (d) =>
+    if @get('isCategory')
+      @get('data').colCategories(@get('col')).indexOf d
+    else
+      d
+
+  scaleWithDomain: () =>
+    mapd = _.map(@get('data').selectCol(@get('col')), (d) => @toValue(d))
+    sc = false
+    if @get('isCategory')
+      sc = d3.scale.quantile().domain mapd
+    else
+      max = d3.max mapd
+      min = d3.min mapd
+      sc = d3.scale.linear().domain [min, max]
+
+    sc.range(@get('range'))
+
+  scaledValue: (d) =>
+    sc = @scaleWithDomain()
+    sc(@toValue(d))
 
 
 class window.PlotDimensions extends Backbone.Collection
@@ -96,47 +122,47 @@ xPlotDimension = new PlotDimensionModel
   name: 'X Axis'
   col: 'X'
   data: data
+  range: [margins[1], width]
   scale: d3.scale.linear().range [margins[1], width]
 
   transform: (circleTransitions) ->
     dataCol = data.selectCol @get('col')
-    sc = @get('scale').domain [d3.min(dataCol), d3.max(dataCol)]
-    circleTransitions.attr('cx', (d) => sc( d[@get('col')] ))
+    circleTransitions.attr('cx', (d) => @scaledValue( d[@get('col')] ))
 
 
 yPlotDimension = new PlotDimensionModel
   name: 'Y Axis'
   col: 'Y'
   data: data
+  range: [height, margins[2]]
   scale: d3.scale.linear().range [height, margins[2]]
 
   transform: (circleTransitions) ->
     dataCol = data.selectCol @get('col')
-    sc = @get('scale').domain [d3.min(dataCol), d3.max(dataCol)]
-    circleTransitions.attr('cy', (d) => sc( d[@get('col')] ))
+    circleTransitions.attr('cy', (d) => @scaledValue( d[@get('col')] ))
 
 rPlotDimension = new PlotDimensionModel
   name: 'Radius'
   col: 'Radius'
   data: data
+  range: [5, 20]
   scale: d3.scale.linear().range [5, 20]
 
   transform: (circleTransitions) ->
     dataCol = data.selectCol @get('col')
-    sc = @get('scale').domain [d3.min(dataCol), d3.max(dataCol)]
-    circleTransitions.attr('r', (d) => sc( d[@get('col')] ))
+    circleTransitions.attr('r', (d) => @scaledValue( d[@get('col')] ))
 
 colorPlotDimension = new PlotDimensionModel
   name: 'Color'
   col: 'Color'
   data: data
+  range: [0, 180]
   scale: d3.scale.linear().range [0, 180]
 
   transform: (circleTransitions) ->
     numToHue = (n) -> d3.hsl((n + 180) % 360, 1, 0.5)
     dataCol = data.selectCol @get('col')
-    sc = @get('scale').domain [d3.min(dataCol), d3.max(dataCol)]
-    circleTransitions.style('fill', (d) => numToHue( sc( d[@get('col')] ) ))
+    circleTransitions.style('fill', (d) => numToHue( @scaledValue( d[@get('col')] ) ))
 
 plotDimensions = new PlotDimensions [
   xPlotDimension

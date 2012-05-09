@@ -1,8 +1,8 @@
 (function() {
   var col, colorPlotDimension, duration, height, leastSquares, margins, plotDimensions, rPlotDimension, width, xPlotDimension, y, yPlotDimension,
+    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __hasProp = Object.prototype.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; },
-    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
   leastSquares = function(x_vals, y_vals) {
     var a, b, count, i, linFn, rr, ssxx, ssxy, ssyy, xMean, xv, yMean, yv;
@@ -54,6 +54,7 @@
     __extends(DataModel, _super);
 
     function DataModel() {
+      this.colCategories = __bind(this.colCategories, this);
       DataModel.__super__.constructor.apply(this, arguments);
     }
 
@@ -154,6 +155,10 @@
       }
     };
 
+    DataModel.prototype.colCategories = function(col) {
+      return _.uniq(this.selectCol(col)).sort();
+    };
+
     return DataModel;
 
   })(Backbone.Model);
@@ -163,6 +168,9 @@
     __extends(PlotDimensionModel, _super);
 
     function PlotDimensionModel() {
+      this.scaledValue = __bind(this.scaledValue, this);
+      this.scaleWithDomain = __bind(this.scaleWithDomain, this);
+      this.toValue = __bind(this.toValue, this);
       this.updateCol = __bind(this.updateCol, this);
       PlotDimensionModel.__super__.constructor.apply(this, arguments);
     }
@@ -188,6 +196,37 @@
         isCategory: isForcedCategory,
         isForcedCategory: isForcedCategory
       });
+    };
+
+    PlotDimensionModel.prototype.toValue = function(d) {
+      if (this.get('isCategory')) {
+        return this.get('data').colCategories(this.get('col')).indexOf(d);
+      } else {
+        return d;
+      }
+    };
+
+    PlotDimensionModel.prototype.scaleWithDomain = function() {
+      var mapd, max, min, sc,
+        _this = this;
+      mapd = _.map(this.get('data').selectCol(this.get('col')), function(d) {
+        return _this.toValue(d);
+      });
+      sc = false;
+      if (this.get('isCategory')) {
+        sc = d3.scale.quantile().domain(mapd);
+      } else {
+        max = d3.max(mapd);
+        min = d3.min(mapd);
+        sc = d3.scale.linear().domain([min, max]);
+      }
+      return sc.range(this.get('range'));
+    };
+
+    PlotDimensionModel.prototype.scaledValue = function(d) {
+      var sc;
+      sc = this.scaleWithDomain();
+      return sc(this.toValue(d));
     };
 
     return PlotDimensionModel;
@@ -239,14 +278,14 @@
     name: 'X Axis',
     col: 'X',
     data: data,
+    range: [margins[1], width],
     scale: d3.scale.linear().range([margins[1], width]),
     transform: function(circleTransitions) {
-      var dataCol, sc,
+      var dataCol,
         _this = this;
       dataCol = data.selectCol(this.get('col'));
-      sc = this.get('scale').domain([d3.min(dataCol), d3.max(dataCol)]);
       return circleTransitions.attr('cx', function(d) {
-        return sc(d[_this.get('col')]);
+        return _this.scaledValue(d[_this.get('col')]);
       });
     }
   });
@@ -255,14 +294,14 @@
     name: 'Y Axis',
     col: 'Y',
     data: data,
+    range: [height, margins[2]],
     scale: d3.scale.linear().range([height, margins[2]]),
     transform: function(circleTransitions) {
-      var dataCol, sc,
+      var dataCol,
         _this = this;
       dataCol = data.selectCol(this.get('col'));
-      sc = this.get('scale').domain([d3.min(dataCol), d3.max(dataCol)]);
       return circleTransitions.attr('cy', function(d) {
-        return sc(d[_this.get('col')]);
+        return _this.scaledValue(d[_this.get('col')]);
       });
     }
   });
@@ -271,14 +310,14 @@
     name: 'Radius',
     col: 'Radius',
     data: data,
+    range: [5, 20],
     scale: d3.scale.linear().range([5, 20]),
     transform: function(circleTransitions) {
-      var dataCol, sc,
+      var dataCol,
         _this = this;
       dataCol = data.selectCol(this.get('col'));
-      sc = this.get('scale').domain([d3.min(dataCol), d3.max(dataCol)]);
       return circleTransitions.attr('r', function(d) {
-        return sc(d[_this.get('col')]);
+        return _this.scaledValue(d[_this.get('col')]);
       });
     }
   });
@@ -287,17 +326,17 @@
     name: 'Color',
     col: 'Color',
     data: data,
+    range: [0, 180],
     scale: d3.scale.linear().range([0, 180]),
     transform: function(circleTransitions) {
-      var dataCol, numToHue, sc,
+      var dataCol, numToHue,
         _this = this;
       numToHue = function(n) {
         return d3.hsl((n + 180) % 360, 1, 0.5);
       };
       dataCol = data.selectCol(this.get('col'));
-      sc = this.get('scale').domain([d3.min(dataCol), d3.max(dataCol)]);
       return circleTransitions.style('fill', function(d) {
-        return numToHue(sc(d[_this.get('col')]));
+        return numToHue(_this.scaledValue(d[_this.get('col')]));
       });
     }
   });
