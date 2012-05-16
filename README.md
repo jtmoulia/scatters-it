@@ -1,6 +1,6 @@
 # Scatters it
 
-The webapp can be viewed [here](scattersit.herokuapp.com).
+The webapp can be viewed [here](http://scattersit.herokuapp.com).
 
 This is my first prototype of a simple webapp which is able to plot csv/json
 data on a scatter plot. The novelty is making it trivial to set which data
